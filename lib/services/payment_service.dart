@@ -68,4 +68,17 @@ class PaymentService {
       await prefs.setString(_paymentsKey, json.encode(payments));
     }
   }
+
+  static Future<List<Map<String, dynamic>>> getPaymentHistory() async {
+    final payments = await getPayments();
+    return payments
+        .map((payment) => {
+              'orderId': payment['id'],
+              'amount': payment['amount'],
+              'date': payment['createdAt'],
+              'status': payment['status'],
+              'paymentMethod': payment['paymentMethod'],
+            })
+        .toList();
+  }
 }

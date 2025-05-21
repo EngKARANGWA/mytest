@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -191,6 +193,7 @@ class _SellerAddProductTabState extends State<SellerAddProductTab> {
                   'inCart': 0,
                 };
 
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
                 await ProductService.saveProduct(product);
 
                 setState(() {
@@ -203,7 +206,7 @@ class _SellerAddProductTabState extends State<SellerAddProductTab> {
                 });
 
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
+                scaffoldMessenger.showSnackBar(
                   const SnackBar(
                     content: Text('Product added successfully'),
                     backgroundColor: Colors.green,

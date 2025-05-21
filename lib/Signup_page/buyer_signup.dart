@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 import '../services/user_service.dart';
 import '../services/location_service.dart';
@@ -40,31 +42,48 @@ class _BuyerSignupState extends State<BuyerSignup> {
       });
 
       try {
+        // Debug logging
+        print('Form validation passed');
+        print('Phone: ${_phoneController.text.trim()}');
+        print('Address: ${_addressController.text.trim()}');
+        print('Location: ${_locationController.text.trim()}');
+        print('Name: ${_nameController.text.trim()}');
+        print('Email: ${_emailController.text.trim()}');
+        print('Password: ${_passwordController.text}');
+
+        // Create additional info map with required fields
+        final Map<String, dynamic> additionalInfo = {
+          'phone': _phoneController.text.trim(),
+          'address': _addressController.text.trim(),
+          'location': _locationController.text.trim(),
+        };
+
         // Request location permission
         final hasLocationPermission =
             await LocationService.requestLocationPermission();
-        Map<String, dynamic>? locationData;
-
         if (hasLocationPermission) {
-          locationData = await LocationService.getCurrentLocation();
+          final locationData = await LocationService.getCurrentLocation();
+          if (locationData != null) {
+            additionalInfo.addAll(locationData);
+          }
         }
 
+        print('Additional info being sent: $additionalInfo');
+
+        // Register the user with the additional info
         await UserService.registerUser(
-          email: _emailController.text,
+          email: _emailController.text.trim(),
           password: _passwordController.text,
-          name: _nameController.text,
+          name: _nameController.text.trim(),
           userType: 'buyer',
-          additionalInfo: {
-            'address': _addressController.text,
-            'phone': _phoneController.text,
-            'location': _locationController.text,
-            if (locationData != null) ...locationData,
-          },
+          additionalInfo: additionalInfo, role: '',
         );
+
+        print('Registration successful, attempting to login...');
 
         // Login the user after successful registration
         final user = await UserService.loginUser(
-          email: _emailController.text,
+          email: _emailController.text.trim(),
           password: _passwordController.text,
         );
 
@@ -75,9 +94,14 @@ class _BuyerSignupState extends State<BuyerSignup> {
           );
         }
       } catch (e) {
+        print('Registration error: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString())),
+            SnackBar(
+              content: Text(e.toString()),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
           );
         }
       } finally {
@@ -87,6 +111,15 @@ class _BuyerSignupState extends State<BuyerSignup> {
           });
         }
       }
+    } else {
+      // Form validation failed
+      print('Form validation failed');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all required fields correctly'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -141,14 +174,18 @@ class _BuyerSignupState extends State<BuyerSignup> {
               TextFormField(
                 controller: _phoneController,
                 decoration: const InputDecoration(
-                  labelText: 'Phone Number',
+                  labelText: 'Phone Number *',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.phone),
+                  hintText: 'Enter 10-digit phone number',
                 ),
                 keyboardType: TextInputType.phone,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your phone number';
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Phone number is required';
+                  }
+                  if (!RegExp(r'^\d{10}$').hasMatch(value.trim())) {
+                    return 'Please enter a valid 10-digit phone number';
                   }
                   return null;
                 },
@@ -157,14 +194,15 @@ class _BuyerSignupState extends State<BuyerSignup> {
               TextFormField(
                 controller: _addressController,
                 decoration: const InputDecoration(
-                  labelText: 'Address',
+                  labelText: 'Address *',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.location_on),
+                  hintText: 'Enter your complete address',
                 ),
                 maxLines: 2,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your address';
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Address is required';
                   }
                   return null;
                 },
@@ -173,15 +211,14 @@ class _BuyerSignupState extends State<BuyerSignup> {
               TextFormField(
                 controller: _locationController,
                 decoration: const InputDecoration(
-                  labelText: 'Your Location',
+                  labelText: 'Location *',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.place),
-                  hintText:
-                      'Enter your current location for better product recommendations',
+                  hintText: 'Enter your current location',
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your location';
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Location is required';
                   }
                   return null;
                 },
@@ -240,5 +277,25 @@ class _BuyerSignupState extends State<BuyerSignup> {
         ),
       ),
     );
+  }
+}
+
+class BuyerInfo {
+  final String fullName;
+  final String phoneNumber;
+  final String address;
+
+  BuyerInfo({
+    required this.fullName,
+    required this.phoneNumber,
+    required this.address,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'fullName': fullName,
+      'phoneNumber': phoneNumber,
+      'address': address,
+    };
   }
 }

@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -204,11 +206,13 @@ class _ProductPostModalState extends State<ProductPostModal> {
                     'inCart': 0,
                   };
 
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  final navigator = Navigator.of(context);
                   await ProductService.saveProduct(product);
 
                   if (!mounted) return;
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  navigator.pop();
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(
                       content: Text('Product added successfully'),
                       backgroundColor: Colors.green,
@@ -216,7 +220,8 @@ class _ProductPostModalState extends State<ProductPostModal> {
                   );
                 } catch (e) {
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(
                       content: Text('Error adding product: $e'),
                       backgroundColor: Colors.red,

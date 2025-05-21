@@ -5,6 +5,7 @@ import 'dart:io';
 class ProductService {
   static const String _productsKey = 'products';
   static const String _nextIdKey = 'nextProductId';
+  static const String _favoritesKey = 'favorites';
 
   // Save a new product
   static Future<void> saveProduct(Map<String, dynamic> product) async {
@@ -111,5 +112,34 @@ class ProductService {
     // Remove the product
     products.removeWhere((p) => p['id'] == productId);
     await prefs.setString(_productsKey, json.encode(products));
+  }
+
+  static Future<List<Map<String, dynamic>>> getFavoriteProducts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final favoritesJson = prefs.getString(_favoritesKey);
+    final products = await getProducts();
+
+    if (favoritesJson == null) {
+      return [];
+    }
+
+    final favoriteIds = (json.decode(favoritesJson) as List).cast<String>();
+    return products
+        .where((product) => favoriteIds.contains(product['id']))
+        .toList();
+  }
+
+  static Future<void> removeFromFavorites(String productId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final favoritesJson = prefs.getString(_favoritesKey);
+
+    if (favoritesJson == null) {
+      return;
+    }
+
+    List<String> favorites =
+        (json.decode(favoritesJson) as List).cast<String>();
+    favorites.remove(productId);
+    await prefs.setString(_favoritesKey, json.encode(favorites));
   }
 }

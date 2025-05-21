@@ -42,6 +42,14 @@ class _SellerSignupState extends State<SellerSignup> {
       });
 
       try {
+        // Show loading indicator
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registering your account...'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+
         await UserService.registerUser(
           email: _emailController.text,
           password: _passwordController.text,
@@ -52,8 +60,18 @@ class _SellerSignupState extends State<SellerSignup> {
             'businessAddress': _businessAddressController.text,
             'phone': _phoneController.text,
             'location': _locationController.text,
-          },
+          }, role: '',
         );
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Registration successful! Logging you in...'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
 
         // Login the user after successful registration
         final user = await UserService.loginUser(
@@ -69,8 +87,23 @@ class _SellerSignupState extends State<SellerSignup> {
         }
       } catch (e) {
         if (mounted) {
+          String errorMessage = 'Registration failed. ';
+          if (e.toString().contains('email-already-in-use')) {
+            errorMessage += 'This email is already registered.';
+          } else if (e.toString().contains('weak-password')) {
+            errorMessage += 'Please use a stronger password.';
+          } else if (e.toString().contains('network')) {
+            errorMessage += 'Please check your internet connection.';
+          } else {
+            errorMessage += e.toString();
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString())),
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
           );
         }
       } finally {
@@ -157,6 +190,9 @@ class _SellerSignupState extends State<SellerSignup> {
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your phone number';
+                  }
+                  if (!RegExp(r'^\d{10}$').hasMatch(value)) {
+                    return 'Please enter a valid 10-digit phone number';
                   }
                   return null;
                 },

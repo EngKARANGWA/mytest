@@ -61,4 +61,10 @@ class CartService {
     cart.removeWhere((item) => item['id'] == productId);
     await prefs.setString(_cartKey, json.encode(cart));
   }
+
+  static Future<int> getCartItemCount() async {
+    final cart = await getCart();
+    return cart.fold<int>(
+        0, (sum, item) => sum + (item['quantity'] as int? ?? 1));
+  }
 }
