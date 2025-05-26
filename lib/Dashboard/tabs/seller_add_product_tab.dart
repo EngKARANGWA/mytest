@@ -227,7 +227,7 @@ class _SellerAddProductTabState extends State<SellerAddProductTab> {
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
             child: const Text(
-              'Post Product',
+              'Post Product!',
               style: TextStyle(color: Colors.white, fontSize: 16),
             ),
           ),

@@ -53,11 +53,8 @@ class _ProductPostFormState extends State<ProductPostForm> {
         try {
           String fileName =
               'products/${DateTime.now().millisecondsSinceEpoch}_${_imageFile!.path.split('/').last}';
-          firebase_storage.Reference ref = firebase_storage
-              .FirebaseStorage
-              .instance
-              .ref()
-              .child(fileName);
+          firebase_storage.Reference ref =
+              firebase_storage.FirebaseStorage.instance.ref().child(fileName);
 
           await ref.putFile(_imageFile!); // Upload the file
           imageUrl = await ref.getDownloadURL(); // Get the download URL
@@ -113,7 +110,7 @@ class _ProductPostFormState extends State<ProductPostForm> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Post New Product'),
+        title: const Text('Post New aProduct'),
         backgroundColor: Colors.deepPurple,
       ),
       body: Stack(
@@ -139,7 +136,6 @@ class _ProductPostFormState extends State<ProductPostForm> {
                         ),
                       ),
                       SizedBox(height: isLandscape ? 16 : 24),
-
                       GestureDetector(
                         onTap: _isUploading ? null : _getImage,
                         child: Container(
@@ -148,34 +144,32 @@ class _ProductPostFormState extends State<ProductPostForm> {
                             border: Border.all(color: Colors.grey),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child:
-                              _imageFile == null
-                                  ? const Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.add_photo_alternate,
-                                        size: 50,
-                                        color: Colors.white,
-                                      ),
-                                      SizedBox(height: 8),
-                                      Text(
-                                        'Tap to add product image',
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                    ],
-                                  )
-                                  : ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.file(
-                                      _imageFile!,
-                                      fit: BoxFit.cover,
+                          child: _imageFile == null
+                              ? const Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.add_photo_alternate,
+                                      size: 50,
+                                      color: Colors.white,
                                     ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Tap to add product image',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ],
+                                )
+                              : ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.file(
+                                    _imageFile!,
+                                    fit: BoxFit.cover,
                                   ),
+                                ),
                         ),
                       ),
                       SizedBox(height: isLandscape ? 16 : 24),
-
                       TextFormField(
                         controller: _productNameController,
                         decoration: const InputDecoration(
@@ -191,7 +185,6 @@ class _ProductPostFormState extends State<ProductPostForm> {
                         },
                       ),
                       SizedBox(height: isLandscape ? 12 : 16),
-
                       TextFormField(
                         controller: _descriptionController,
                         decoration: const InputDecoration(
@@ -208,7 +201,6 @@ class _ProductPostFormState extends State<ProductPostForm> {
                         },
                       ),
                       SizedBox(height: isLandscape ? 12 : 16),
-
                       TextFormField(
                         controller: _priceController,
                         decoration: const InputDecoration(
@@ -228,7 +220,6 @@ class _ProductPostFormState extends State<ProductPostForm> {
                         },
                       ),
                       SizedBox(height: isLandscape ? 12 : 16),
-
                       TextFormField(
                         controller: _categoryController,
                         decoration: const InputDecoration(
@@ -244,7 +235,6 @@ class _ProductPostFormState extends State<ProductPostForm> {
                         },
                       ),
                       SizedBox(height: isLandscape ? 16 : 24),
-
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.deepPurple,

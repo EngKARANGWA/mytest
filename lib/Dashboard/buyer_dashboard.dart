@@ -26,6 +26,9 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
   int _cartItemCount = 0;
   Map<String, dynamic>? _currentLocation;
   List<Map<String, dynamic>> _nearbySellers = [];
+  List<Map<String, dynamic>> _products = [];
+  bool _isLoading = true;
+  String _error = '';
 
   @override
   void initState() {
@@ -33,6 +36,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
     _loadNotifications();
     _loadCartCount();
     _loadCurrentLocation();
+    _loadProducts();
   }
 
   Future<void> _loadCurrentLocation() async {
@@ -56,13 +60,17 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
   }
 
   Future<void> _loadNotifications() async {
-    final notifications = await NotificationService.getNotifications();
-    // Store notifications in local storage for offline access
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('cached_notifications', json.encode(notifications));
-    setState(() {
-      _notifications = notifications;
-    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final buyerId = prefs.getString('user_id') ??
+          prefs.getString('current_user_id') ??
+          'default_buyer';
+      final notifications =
+          await NotificationService.getNotifications(sellerId: buyerId);
+      // Handle notifications as needed
+    } catch (e) {
+      print('Error loading notifications: $e');
+    }
   }
 
   Future<void> _loadCartCount() async {
@@ -73,6 +81,27 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
     setState(() {
       _cartItemCount = count;
     });
+  }
+
+  Future<void> _loadProducts() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = '';
+      });
+
+      final products = await ProductService.getAllProducts();
+
+      setState(() {
+        _products = products;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   Widget _buildHomeTab() {
@@ -155,63 +184,175 @@ class _BuyerDashboardState extends State<BuyerDashboard> {
             ),
           ),
         Expanded(
-          child: FutureBuilder(
-            future: ProductService.getProducts(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-              final products = snapshot.data ?? [];
-              return GridView.builder(
-                padding: const EdgeInsets.all(8),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.75,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemCount: products.length,
-                itemBuilder: (context, index) {
-                  final product = products[index];
-                  return Card(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Image.network(
-                            product['imageUrl'] ?? '',
-                            fit: BoxFit.cover,
-                            width: double.infinity,
+          child: _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(),
+                )
+              : _error.isNotEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline,
+                              size: 64, color: Colors.red[300]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error loading products',
+                            style: Theme.of(context).textTheme.headlineSmall,
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                            child: Text(
+                              _error,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _loadProducts,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _products.isEmpty
+                      ? const Center(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
+                              Icon(Icons.shopping_bag_outlined,
+                                  size: 64, color: Colors.grey),
+                              SizedBox(height: 16),
                               Text(
-                                product['name'] ?? '',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              Text('\$${product['price']?.toString() ?? '0'}'),
-                              ElevatedButton(
-                                onPressed: () => CartService.addToCart(product),
-                                child: const Text('Add to Cart'),
+                                'No products available',
+                                style:
+                                    TextStyle(fontSize: 18, color: Colors.grey),
                               ),
                             ],
                           ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _loadProducts,
+                          child: GridView.builder(
+                            padding: const EdgeInsets.all(16),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.75,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                            ),
+                            itemCount: _products.length,
+                            itemBuilder: (context, index) {
+                              final product = _products[index];
+                              return Card(
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      flex: 3,
+                                      child: ClipRRect(
+                                        borderRadius:
+                                            const BorderRadius.vertical(
+                                          top: Radius.circular(12),
+                                        ),
+                                        child: Image.network(
+                                          product['imageUrl'] ??
+                                              'https://via.placeholder.com/150',
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return Container(
+                                              width: double.infinity,
+                                              color: Colors.grey[300],
+                                              child: const Icon(
+                                                Icons.image_not_supported,
+                                                size: 50,
+                                                color: Colors.grey,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              product['name'] ??
+                                                  'Unknown Product',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '\$${product['price']?.toString() ?? '0.00'}',
+                                              style: const TextStyle(
+                                                color: Colors.deepPurple,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              product['category'] ??
+                                                  'Uncategorized',
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            if (product['status'] != null)
+                                              Container(
+                                                margin: const EdgeInsets.only(
+                                                    top: 4),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 6,
+                                                  vertical: 2,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: product['status'] ==
+                                                          'Active'
+                                                      ? Colors.green
+                                                      : Colors.orange,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Text(
+                                                  product['status'],
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
-          ),
         ),
       ],
     );

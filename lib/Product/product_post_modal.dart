@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/product_service.dart';
+import '../services/notification_service.dart';
 
 class ProductPostModal extends StatefulWidget {
   const ProductPostModal({super.key});
@@ -68,7 +69,7 @@ class _ProductPostModalState extends State<ProductPostModal> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Post New Product',
+                  'Post New AAProduct',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -171,7 +172,7 @@ class _ProductPostModalState extends State<ProductPostModal> {
                 if (_productNameController.text.isEmpty ||
                     _priceController.text.isEmpty ||
                     _categoryController.text.isEmpty ||
-                    _addressController.text.isEmpty) {
+                    _descriptionController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Please fill all required fields'),
@@ -194,37 +195,86 @@ class _ProductPostModalState extends State<ProductPostModal> {
                 }
 
                 try {
-                  final product = {
-                    'name': _productNameController.text,
-                    'price': price,
-                    'category': _categoryController.text,
-                    'description': _descriptionController.text,
-                    'address': _addressController.text,
-                    'image': _imageFile ?? 'https://via.placeholder.com/150',
-                    'status': 'Active',
-                    'views': 0,
-                    'inCart': 0,
-                  };
-
-                  final scaffoldMessenger = ScaffoldMessenger.of(context);
-                  final navigator = Navigator.of(context);
-                  await ProductService.saveProduct(product);
-
-                  if (!mounted) return;
-                  navigator.pop();
-                  scaffoldMessenger.showSnackBar(
+                  // Show loading indicator
+                  ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Product added successfully'),
-                      backgroundColor: Colors.green,
+                      content: Text('Creating product...'),
+                      duration: Duration(seconds: 1),
                     ),
                   );
+
+                  final response = await ProductService.createProduct(
+                    name: _productNameController.text.trim(),
+                    description: _descriptionController.text.trim(),
+                    price: price,
+                    category: _categoryController.text,
+                    image: _imageFile,
+                  );
+
+                  if (response != null && mounted) {
+                    final navigator = Navigator.of(context);
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+                    // Send push notification for successful product creation
+                    try {
+                      await _sendProductCreatedNotification(
+                        productName: _productNameController.text.trim(),
+                        price: price,
+                        category: _categoryController.text,
+                      );
+                    } catch (notificationError) {
+                      print('Failed to send notification: $notificationError');
+                      // Don't fail the whole process if notification fails
+                    }
+
+                    // Close modal with success result
+                    navigator.pop(true);
+
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.check_circle, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(response['message'] ??
+                                  'Product created successfully'),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  }
                 } catch (e) {
                   if (!mounted) return;
+
+                  String errorMessage = 'Error creating product. ';
+                  String errorString = e.toString();
+
+                  if (errorString.contains('Network error')) {
+                    errorMessage += 'Please check your internet connection.';
+                  } else if (errorString.contains('validation')) {
+                    errorMessage += 'Please check your input data.';
+                  } else if (errorString.contains('Authentication required')) {
+                    errorMessage += 'Please login again.';
+                  } else {
+                    errorMessage += errorString.replaceAll('Exception: ', '');
+                  }
+
                   final scaffoldMessenger = ScaffoldMessenger.of(context);
                   scaffoldMessenger.showSnackBar(
                     SnackBar(
-                      content: Text('Error adding product: $e'),
+                      content: Row(
+                        children: [
+                          const Icon(Icons.error, color: Colors.white),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(errorMessage)),
+                        ],
+                      ),
                       backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 5),
                     ),
                   );
                 }
@@ -242,5 +292,70 @@ class _ProductPostModalState extends State<ProductPostModal> {
         ),
       ),
     );
+  }
+
+  Future<void> _sendProductCreatedNotification({
+    required String productName,
+    required double price,
+    required String category,
+  }) async {
+    try {
+      print('📱 Sending product created notification...');
+
+      // Create notification data
+      final notificationData = {
+        'title': '🎉 Product Created Successfully!',
+        'body': '$productName (\$$price) in $category is now live',
+        'type': 'product_created',
+        'productName': productName,
+        'price': price.toString(),
+        'category': category,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+
+      // Send local notification
+      await NotificationService.showProductCreatedNotification(
+        productName: productName,
+        price: price,
+        category: category,
+      );
+
+      // Send push notification to all users (if implemented)
+      await _sendPushNotificationToUsers(notificationData);
+
+      print('✅ Product created notification sent successfully');
+    } catch (e) {
+      print('❌ Error sending product created notification: $e');
+      throw e;
+    }
+  }
+
+  Future<void> _sendPushNotificationToUsers(
+      Map<String, String> notificationData) async {
+    try {
+      // This would typically send to a backend service that handles push notifications
+      // For now, we'll just simulate it and send local notifications
+
+      print('📤 Sending push notification to users...');
+
+      // You can integrate with services like:
+      // - Firebase Cloud Messaging (FCM)
+      // - OneSignal
+      // - Pusher
+      // - Custom backend service
+
+      // Example of what the backend call might look like:
+      // await PushNotificationService.sendToAllUsers(
+      //   title: notificationData['title']!,
+      //   body: notificationData['body']!,
+      //   data: notificationData,
+      // );
+
+      // For demonstration, we'll just log it
+      print('Push notification data: $notificationData');
+    } catch (e) {
+      print('❌ Error sending push notification: $e');
+      // Don't throw here to avoid breaking the product creation flow
+    }
   }
 }

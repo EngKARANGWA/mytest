@@ -21,6 +21,8 @@ class _SellerDashboardState extends State<SellerDashboard> {
   int _currentIndex = 0;
   bool _notificationsEnabled = true;
   bool _isDarkMode = false;
+  final GlobalKey<SellerProductsTabState> _productsTabKey =
+      GlobalKey<SellerProductsTabState>();
 
   @override
   void initState() {
@@ -75,21 +77,69 @@ class _SellerDashboardState extends State<SellerDashboard> {
         _toggleNotifications, _toggleTheme);
   }
 
+  Future<void> _showProductModal() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => const ProductPostModal(),
+    );
+
+    // If product was created successfully, refresh the products tab
+    if (result == true && _currentIndex == 0) {
+      _productsTabKey.currentState?.refreshProducts();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text(
-          'Seller Dashboard',
+          'Seller Dashboard!',
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: Colors.deepPurple,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.white),
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications, color: Colors.white),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 12,
+                      minHeight: 12,
+                    ),
+                    child: const Text(
+                      '3',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             onPressed: _showNotifications,
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: () {
+              // Refresh current tab
+              if (_currentIndex == 0) {
+                _productsTabKey.currentState?.refreshProducts();
+              }
+            },
           ),
           IconButton(
             icon: const Icon(Icons.settings, color: Colors.white),
@@ -99,23 +149,24 @@ class _SellerDashboardState extends State<SellerDashboard> {
       ),
       body: IndexedStack(
         index: _currentIndex,
-        children: const [
+        children: [
           // My Products Tab
-          SellerProductsTab(),
+          SellerProductsTab(key: _productsTabKey),
           // Add Product Tab
-          SellerAddProductTab(),
+          const SellerAddProductTab(),
           // Payments Tab
-          SellerPaymentsTab(),
+          const SellerPaymentsTab(),
           // Profile Tab
-          SellerProfileTab(),
+          const SellerProfileTab(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         selectedItemColor: Colors.deepPurple,
-        unselectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
         backgroundColor: Colors.white,
         type: BottomNavigationBarType.fixed,
+        elevation: 8,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.inventory),
@@ -132,18 +183,22 @@ class _SellerDashboardState extends State<SellerDashboard> {
           setState(() {
             _currentIndex = index;
           });
+
+          // Refresh products when switching to My Products tab
+          if (index == 0) {
+            Future.delayed(const Duration(milliseconds: 100), () {
+              _productsTabKey.currentState?.refreshProducts();
+            });
+          }
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showDialog(
-            context: context,
-            builder: (context) => const ProductPostModal(),
-          );
-        },
-        backgroundColor: Colors.deepPurple,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      floatingActionButton: _currentIndex == 0 || _currentIndex == 1
+          ? FloatingActionButton(
+              onPressed: _showProductModal,
+              backgroundColor: Colors.deepPurple,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
     );
   }
 }

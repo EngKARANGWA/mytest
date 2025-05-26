@@ -27,9 +27,23 @@ class CartService {
 
       // Send notification to seller
       if (product['sellerId'] != null) {
-        await NotificationService.addNotification(
-          'Your product "${product['name']}" was added to a cart',
-          sellerId: product['sellerId'],
+        // Get user ID from SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        final userId = prefs.getString('user_id') ??
+            prefs.getString('current_user_id') ??
+            'default_user';
+
+        // Replace addNotification with saveNotification
+        await NotificationService.saveNotification(
+          sellerId: userId,
+          notification: {
+            'id': DateTime.now().millisecondsSinceEpoch.toString(),
+            'title': 'Item Added to Cart',
+            'body': 'Product has been added to your cart',
+            'type': 'cart_update',
+            'timestamp': DateTime.now().toIso8601String(),
+            'read': false,
+          },
         );
       }
     }

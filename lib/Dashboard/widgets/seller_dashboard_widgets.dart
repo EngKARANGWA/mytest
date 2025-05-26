@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/notification_service.dart';
 
 void showNotificationsDialog(
@@ -37,8 +38,17 @@ void showNotificationsDialog(
                           : IconButton(
                               icon: const Icon(Icons.check),
                               onPressed: () async {
+                                final prefs =
+                                    await SharedPreferences.getInstance();
+                                final sellerId = prefs.getString('user_id') ??
+                                    prefs.getString('current_user_id') ??
+                                    'default_seller';
                                 await NotificationService.markAsRead(
-                                  notification['id'],
+                                  notification['id'] ??
+                                      DateTime.now()
+                                          .millisecondsSinceEpoch
+                                          .toString(),
+                                  sellerId,
                                 );
                                 // Need to use setState in parent widget
                               },
